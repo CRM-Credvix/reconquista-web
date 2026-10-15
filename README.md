@@ -1,57 +1,51 @@
 # Credvix — Reconquista Web
 
-Site estático (HTML + CSS + JavaScript puro, sem build nem frameworks) para registrar solicitações de extração Reconquista por webhook. Visual alinhado ao **Credvix Design System v0.2**, incluindo sidebar grafite, identidade laranja, tokens CSS, contraste, responsividade e feedback acessível.
+Site estático de solicitação da extração Reconquista, em HTML, CSS e JavaScript puro, sem framework e sem build. O visual segue o **Credvix Design System v0.2**.
 
-## Publicação no GitHub Pages
+## Acessar e publicar
 
-Repositório: `CRM-Credvix/reconquista-web`
+Repositório: `CRM-Credvix/reconquista-web`  
+Site (quando o GitHub Pages estiver publicado): **https://crm-credvix.github.io/reconquista-web/**
 
-1. Acesse **Settings → Pages** no repositório.
-2. Em **Build and deployment**, escolha **Deploy from a branch**.
-3. Em **Branch**, escolha `main` e `/(root)`; clique **Save**.
-4. Aguarde a publicação e acesse: **https://crm-credvix.github.io/reconquista-web/**
+Configuração do GitHub Pages: `Settings → Pages → Deploy from a branch → main → /(root) → Save`.
 
-O endereço acima depende de o GitHub Pages estar habilitado e a publicação concluída. Não coloque arquivos do projeto MOP-CNC aqui.
+## Funcionamento da tela
 
-## Configuração do webhook
+A tela possui **um único botão "Solicitar extração Reconquista"**, sem seleção de franquia/loja. O robô atual processa o conjunto de dados Reconquista e **não aceita código de franquia como parâmetro**.
 
-Edite a constante no início de `script.js`:
+O botão impede cliques duplicados durante o envio e exibe os estados "Enviando solicitação", "Solicitação recebida" ou "Solicitação não confirmada". O status de recebimento representa apenas uma resposta HTTP 2xx do webhook, **não a conclusão do robô**.
+
+## Configurar o webhook
+
+Edite apenas a constante no início do arquivo `script.js`:
 
 ```js
 const WEBHOOK_URL = "https://SEU-WEBHOOK-AQUI";
 ```
 
-O formulário envia:
+Uma solicitação válida faz `POST` HTTPS com cabeçalho `Content-Type: application/json` e JSON:
 
 ```json
 {
-  "franquia": "51545",
   "solicitado_em": "2026-10-15T12:00:00.000Z"
 }
 ```
 
-`solicitado_em` é produzido com `new Date().toISOString()` no instante real da solicitação. Uma resposta HTTP 2xx confirma **somente o recebimento do pedido**, não a execução completa do robô.
+A data real é obtida via `new Date().toISOString()`. **Não existe mais o campo `franquia`**. O serviço receptor deverá ser compatível com esse contrato, aceitar CORS da origem `https://crm-credvix.github.io` (incluindo `OPTIONS` preflight) e retornar um status 2xx apenas quando o pedido estiver registrado.
 
-Para funcionar do GitHub Pages, o receptor precisa ser HTTPS, responder a `OPTIONS` quando houver preflight CORS e permitir a origem `https://crm-credvix.github.io`. CORS **não é autenticação**. Proteja o receptor no servidor com controle de acesso, limites de taxa, validação de payload e deduplicação.
+O GitHub Pages é público e estático: **não coloque segredos nem credenciais no código**. Controle de acesso, limitação de taxa, validação e prevenção de duplicações pertencem ao servidor. CORS sozinho não impede acessos indevidos.
 
-## Franquias
+## Como conectar o robô
 
-O `select` contém apenas a franquia **51545**, que estava confirmada no contexto do projeto; cadastre as demais opções oficiais editando `index.html`. O código enviado hoje **identifica o pedido**, mas não modifica o escopo do extrator Python.
+O arquivo `bot_reconquista.py` utiliza Power BI, Playwright e Google Sheets. A execução completa é `python bot_reconquista.py run` em um ambiente Python apropriado com `config.json`, sessão Microsoft e credenciais Google armazenadas separadamente.
 
-## Integração ao robô real
+GitHub Pages **não executa Python**. Será necessário um serviço receptor autenticado e um processo de execução confiável na máquina/servidor do robô. O webhook continua com URL placeholder: a integração **não está ativa** até essa configuração e testes.
 
-O arquivo fornecido `bot_reconquista.py` realiza extração **Power BI → XLSX → validação → Google Sheets** usando Python/Playwright e um perfil persistente de navegador. Executa localmente por `python bot_reconquista.py run`, com `config.json`, bibliotecas e credenciais necessárias.
+## Checklist de testes
 
-**Limitação verificada:** o CLI do robô não aceita `franquia` como parâmetro. Não presumir que a seleção limita a extração a essa loja.
+1. Com a URL placeholder, clique no botão e confirme a mensagem **Webhook não configurado**.
+2. Configure uma URL de teste HTTPS com CORS e verifique recebimento de `solicitado_em` no JSON.
+3. Confirme resposta 2xx e erro HTTP 500, indisponibilidade ou timeout.
+4. Teste clique duplo e comportamento em celular e teclado.
 
-O GitHub Pages é estático e **não executa Python**. Para ligar a interface ao robô, falta desenvolver/configurar um webhook autenticado, um serviço de fila e um worker confiável na máquina/servidor que dispõe do ambiente e credenciais do robô. Nenhum token, configuração interna, arquivo de sessão, senha, credencial Google ou dados de clientes devem entrar no repositório público.
-
-## Testes sugeridos
-
-1. Abra a página, tente enviar sem selecionar a franquia (deve mostrar erro de validação).
-2. Com o webhook placeholder (ainda não configurado), selecione 51545 e verifique o alerta de configuração.
-3. Após configurar o webhook de testes, valide o JSON recebido e uma resposta 2xx.
-4. Teste erro 500, falha de conexão, tempo limite e prevenção de clique duplo.
-5. Teste em celular, teclado e foco visível.
-
-**Estado:** front-end entregue ao repositório. Integração real e GitHub Pages dependem das configurações descritas.
+Nenhuma alteração foi feita no robô Python ou no projeto MOP-CNC.
